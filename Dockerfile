@@ -12,34 +12,34 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM node:20.2.0-alpine@sha256:f25b0e9d3d116e267d4ff69a3a99c0f4cf6ae94eadd87f1bf7bd68ea3ff0bef7 as base
+FROM eclipse-temurin:19@sha256:f3fbf1ad599d4b5dbdd7ceb55708d10cb9fafb08e094ef91e92aa63b520a232e as builder
 
-FROM base as builder
+WORKDIR /app
 
-# Some packages (e.g. @google-cloud/profiler) require additional
-# deps for post-install scripts
-RUN apk add --update --no-cache \
-    python3 \
-    make \
-    g++ 
-
-WORKDIR /usr/src/app
-
-COPY package*.json ./
-
-RUN npm install --only=production
-
-FROM base as without-grpc-health-probe-bin
-
-WORKDIR /usr/src/app
-
-COPY --from=builder /usr/src/app/node_modules ./node_modules
+COPY ["build.gradle", "gradlew", "./"]
+COPY gradle gradle
+RUN chmod +x gradlew
+RUN ./gradlew downloadRepos
 
 COPY . .
+RUN chmod +x gradlew
+RUN ./gradlew installDist
 
-EXPOSE 50051
+FROM eclipse-temurin:19.0.1_10-jre-alpine@sha256:a75ea64f676041562cd7d3a54a9764bbfb357b2bf1bebf46e2af73e62d32e36c as without-grpc-health-probe-bin
 
-ENTRYPOINT [ "node", "index.js" ]
+RUN apk add --no-cache ca-certificates
+
+# Download Stackdriver Profiler Java agent
+RUN mkdir -p /opt/cprof && \
+    wget -q -O- https://storage.googleapis.com/cloud-profiler/java/latest/profiler_java_agent_alpine.tar.gz \
+    | tar xzv -C /opt/cprof && \
+    rm -rf profiler_java_agent.tar.gz
+
+WORKDIR /app
+COPY --from=builder /app .
+
+EXPOSE 9555
+ENTRYPOINT ["/app/build/install/hipstershop/bin/AdService"]
 
 FROM without-grpc-health-probe-bin
 
