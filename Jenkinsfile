@@ -3,7 +3,7 @@ pipeline{
     stages{
         stage('Build'){
             steps{
-                sh 'docker build -t sudhamaibathula/frontend:v1'
+                sh 'docker build -t sudhamaibathula/frontend:v1 .'
             }
         }
         stage("Push"){
