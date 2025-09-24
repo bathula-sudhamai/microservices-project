@@ -3,7 +3,7 @@ pipeline{
     stages{
         stage('Build'){
             steps{
-                sh 'docker build -t sudhamaibathula/checkoutservice:v1'
+                sh 'docker build -t sudhamaibathula/checkoutservice:v1 .'
             }
         }
         stage("Push"){
